@@ -1,0 +1,16 @@
+[package]
+name = "nikut"
+version = "0.1.0"
+authors = ["othelarian <le.maitre.killian@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+gl = "0.14.0"
+glutin = {version = "0.21.2", default-features = false}
+
+luminance = "0.38.0"
+luminance-windowing = "0.8.1"
+#luminance-glutin = "0.7.0"
+
+rand = "0.5.5"
+

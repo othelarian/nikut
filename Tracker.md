@@ -13,6 +13,12 @@
   * struct nk_context ctx? (found) => DONE
   * nk_init_fixed?
 
+## DAY 2 (2020/01/07)
+
+* do the hello world of luminance without the luminance-glutin => WIP
+  * get the main win => DONE
+  * change the background color (with refresh) => WIP
+  * integrate input to change bg color
 
 ## PREPARED
 

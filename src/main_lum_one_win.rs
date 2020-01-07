@@ -3,8 +3,10 @@ use luminance::pipeline::PipelineState;
 use luminance_glutin::{
     ElementState, Event, GlutinSurface, KeyboardInput,
     Surface, WindowDim, WindowEvent, WindowOpt};
-use rand::Rng;
 use std::process::exit;
+
+mod in_utils;
+use in_utils::new_nb;
 
 /*
 fn main() {
@@ -28,10 +30,6 @@ fn main() {
             exit(1);
         }
     }
-}
-
-fn new_nb() -> f32 {
-    (rand::thread_rng().gen_range(0, 100) as f32) / 100.0
 }
 
 fn main_loop(mut surface: GlutinSurface) {

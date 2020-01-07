@@ -13,6 +13,11 @@ use std::fmt;
 use std::os::raw::c_void;
 use std::rc::Rc;
 
+mod in_utils;
+use in_utils::{
+    //
+};
+
 pub use glutin::{ContextError, CreationError};
 pub use luminance_windowing::{CursorMode, Surface, WindowDim, WindowOpt};
 
@@ -50,7 +55,9 @@ impl From<ContextError> for WinError {
 
 pub struct WinSurface {
     ctx: WindowedContext<PossiblyCurrent>,
-    gfx_state: Rc<RefCell<GraphicsState>>
+    gfx_state: Rc<RefCell<GraphicsState>>,
+    tris: ???,
+
 }
 
 unsafe impl GraphicsContext for WinSurface {
@@ -98,5 +105,50 @@ impl WinSurface {
 
     pub fn swap_buffers(&mut self) {
         self.ctx.swap_buffers().unwrap();
+    }
+}
+
+pub use self::context_tracker::ContextTracker;
+
+mod context_tracker {
+    use glutin::{
+        Context, ContextCurrentState, NotCurrent, PossiblyCurrent,
+        WindowedContext
+    };
+    use takeable_option::Takeable;
+
+    pub enum ContextWrapper<T: ContextCurrentState> {
+        Headless(Context<T>),
+        Windowed(WindowedContext<T>)
+    }
+
+    impl<T: ContextCurrentState> ContextWrapper<T> {
+        pub fn headless(&mut self) -> &mut Context<T> {
+            match self {
+                ContextWrapper::Headless(ref mut ctx) => ctx,
+                _ => panic!()
+            }
+        }
+
+        pub fn windowed(&mut self) -> &mut WindowedContext<T> {
+            match self {
+                ContextWrapper::Windowed(ref mut ctx) => ctx,
+                _ => panic!()
+            }
+        }
+    }
+
+    pub enum ContextCurrentWrapper {
+        PossiblyCurrent(ContextWrapper<PossiblyCurrent>),
+        NotCurrent(ContextWrapper<NotCurrent>)
+    }
+
+    pub type ContextId = usize;
+
+    #[derive(Default)]
+    pub struct ContextTracker {
+        current: Option<ContextId>,
+        others: Vec<(ContextId, Takeable<ContextCurrentWrapper>)>,
+        next_id: ContextId
     }
 }

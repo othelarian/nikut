@@ -36,10 +36,10 @@ pub struct Colors {
 }
 
 pub struct TriFull<'a> {
-    tri_verts: [Vertex; 6],
-    tri_inds: [u32; 6],
-    tri_deint_pos_verts: &'a[Positions],
-    tri_deint_col_verts: &'a[Colors]
+    pub tri_verts: [Vertex; 6],
+    pub tri_inds: [u32; 6],
+    pub tri_deint_pos_verts: &'a[Positions],
+    pub tri_deint_col_verts: &'a[Colors]
 }
 
 pub const TRIS_FULL: TriFull = TriFull {

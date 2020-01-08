@@ -27,7 +27,9 @@
 ## DAY 3 (2020/01/08)
 
 * do the hello_world_glutin.rs with new glutin vers (from yesterday) and deviate to multiple windows => WIP
-  * make it work correctly with the new glutin version => WIP
+  * make it work correctly with the new glutin version => DONE
+  * make one window with the ContextTracker => WIP
+  * launch 3 windows in parallel
 
 ## PREPARED
 

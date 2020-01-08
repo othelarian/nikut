@@ -1,8 +1,7 @@
 use gl;
-use glutin::{ContextBuilder, PossiblyCurrent, WindowedContext};
-use glutin::dpi::{LogicalSize, PhysicalSize, Size};
-//use glutin::event_loop::EventLoop;
-use glutin::monitor::MonitorHandle;
+use glutin::{Api, ContextBuilder, GlProfile, GlRequest, PossiblyCurrent, WindowedContext};
+use glutin::dpi::LogicalSize;
+use glutin::event_loop::EventLoop;
 use glutin::window::{Fullscreen, WindowBuilder};
 use luminance::context::GraphicsContext;
 use luminance::framebuffer::Framebuffer;
@@ -10,7 +9,7 @@ use luminance::state::{GraphicsState, StateQueryError};
 use luminance::texture::{Dim2, Flat};
 use std::cell::RefCell;
 use std::fmt;
-//use std::os::raw::c_void;
+use std::os::raw::c_void;
 use std::rc::Rc;
 
 #[path = "in_utils.rs"]
@@ -56,7 +55,7 @@ impl From<ContextError> for WinError {
 }
 
 pub struct WinSurface<'a> {
-    ctx: WindowedContext<PossiblyCurrent>,
+    win_ctx: WindowedContext<PossiblyCurrent>,
     gfx_state: Rc<RefCell<GraphicsState>>,
     tris: TriFull<'a>,
     //
@@ -68,35 +67,23 @@ unsafe impl GraphicsContext for WinSurface<'_> {
 }
 
 impl WinSurface<'_> {
-    pub fn new(dim: WindowDim, title: &str, win_opt: WindowOpt, monitor: MonitorHandle)
+    pub fn new<T>(el: &EventLoop<T>, dim: WindowDim, title: &str, win_opt: WindowOpt)
     -> Result<Self, WinError> {
         let win_builder = WindowBuilder::new().with_title(title);
-        //
-        //
         let win_builder = match dim {
             WindowDim::Windowed(w, h) =>
                 win_builder.with_inner_size(LogicalSize::new(w, h)),
             WindowDim::Fullscreen =>
-                win_builder.with_fullscreen(Some(Fullscreen::Exclusive(monitor))),
-            //
-             //
-            WindowDim::FullscreenRestricted(w, h) => ()
-            //
-            //
-        }
-        //
-        //
-        let win_ctx = ContextBuilder::new()
-            .build_windowed(win_builder, &el)
-            .unwrap();
-        //
-        /*
-        let win_builder = match dim {
-            WindowDim::Windowed(w, h) => win_builder.with_dimensions((w, h).into()),
-            WindowDim::Fullscreen => win_builder.with_fullscreen(Some(el.get_primary_monitor())),
+                win_builder.with_fullscreen(
+                    Some(Fullscreen::Exclusive(el.primary_monitor().video_modes().next().unwrap()))
+                ),
             WindowDim::FullscreenRestricted(w, h) => {
-                win_builder.with_dimensions((w, h).into())
-                .with_fullscreen(Some(el.get_primary_monitor()))
+                win_builder.with_inner_size(LogicalSize::new(w, h))
+                    .with_fullscreen(
+                        Some(Fullscreen::Exclusive(
+                            el.primary_monitor().video_modes().next().unwrap())
+                        )
+                    )
             }
         };
         let win_ctx = ContextBuilder::new()
@@ -104,21 +91,19 @@ impl WinSurface<'_> {
             .with_gl_profile(GlProfile::Core)
             .with_multisampling(win_opt.num_samples().unwrap_or(0) as u16)
             .with_double_buffer(Some(true))
-            .build_windowed(win_builder, &el)?;
-        let ctx = unsafe { win_ctx.make_current().map_err(|(_, e)| e)? };
-        gl::load_with(|s| ctx.get_proc_address(s) as *const c_void);
+            .build_windowed(win_builder, &el)
+            .unwrap();
+        let win_ctx = unsafe { win_ctx.make_current().map_err(|(_, e)| e)? };
         match win_opt.cursor_mode() {
-            CursorMode::Visible => ctx.window().hide_cursor(false),
-            CursorMode::Invisible | CursorMode::Disabled => ctx.window().hide_cursor(true)
+            CursorMode::Visible => win_ctx.window().set_cursor_visible(true),
+            CursorMode::Invisible | CursorMode::Disabled => win_ctx.window().set_cursor_visible(false)
         }
-        ctx.window().show();
+        //
+        gl::load_with(|s| win_ctx.get_proc_address(s) as *const c_void);
+        win_ctx.window().set_visible(true);
         let gfx_state = GraphicsState::new().map_err(WinError::GraphicsStateError)?;
-        */
-        //
-        //
-        //
         Ok(WinSurface {
-            ctx,
+            win_ctx,
             gfx_state: Rc::new(RefCell::new(gfx_state)),
             tris: TRIS_FULL,
             //
@@ -126,18 +111,15 @@ impl WinSurface<'_> {
         })
     }
 
-    pub fn size(&self) -> [u32; 2] {
-        let logical = self.ctx.window().get_inner_size().unwrap();
-        let (w, h) = PhysicalSize::from_logical(logical, self.ctx.window().get_hidpi_factor()).into();
-        [w, h]
+    pub fn back_buffer(&mut self) -> Result<Framebuffer<Flat, Dim2, (), ()>, WinError> {
+        let (w, h) = self.win_ctx.window().inner_size().into();
+        Ok(Framebuffer::back_buffer(self, [w, h]))
     }
 
-    pub fn back_buffer(&mut self) -> Result<Framebuffer<Flat, Dim2, (), ()>, WinError> {
-        Ok(Framebuffer::back_buffer(self, self.size()))
-    }
+    pub fn ctx(&mut self) -> &WindowedContext<PossiblyCurrent> { &self.win_ctx }
 
     pub fn swap_buffers(&mut self) {
-        self.ctx.swap_buffers().unwrap();
+        self.win_ctx.swap_buffers().unwrap();
     }
 }
 

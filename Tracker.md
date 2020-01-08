@@ -24,6 +24,11 @@
   * launch three windows (connected to the hasmap) =>ABORTED
   * change the version of glutin (new api!) => WIP
 
+## DAY 3 (2020/01/08)
+
+* do the hello_world_glutin.rs with new glutin vers (from yesterday) and deviate to multiple windows => WIP
+  * make it work correctly with the new glutin version => WIP
+
 ## PREPARED
 
 

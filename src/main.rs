@@ -8,8 +8,7 @@ use luminance::tess::{Mode, TessBuilder};
 use luminance_windowing::{WindowDim, WindowOpt};
 
 mod winger;
-use winger::WinSurface;
-//use winger::{WinSurface, ContextTracker};
+use winger::{WinSurface, ContextTracker};
 
 mod in_utils;
 use in_utils::{TRIS_FULL, Semantics, TessMethod, new_nb};
@@ -19,8 +18,8 @@ const FS: &'static str = include_str!("../ressources/simple-fs.glsl");
 
 fn main() {
     let el = EventLoop::new();
-    //let mut ctx_tracker = ContextTracker::default();
-    //let mut windows = std::collections::HashMap::new();
+    let mut ctx_tracker = ContextTracker::default();
+    let mut windows = std::collections::HashMap::new();
 
     /*
     for win_idx in 0..3 {
@@ -40,6 +39,13 @@ fn main() {
         "Test Lumglut hi",
         WindowOpt::default()
     ).expect("Glutin surface creation");
+    //
+    let win_id = surface.ctx().window().id();
+    let ctx_id = ctx_tracker.insert(ContextCurrentWrapper::PossiblyCurrent(
+        ContextWrapper::Windoewed()
+    ));
+    //
+    windows.insert(win_id, surface);
     //
     //
 
@@ -74,21 +80,26 @@ fn main() {
         .build()
         .unwrap();
 
-    //
-    //
-    //
-    let mut back_buffer = surface.back_buffer().unwrap();
-    let mut color = [0.0, 0.5, 1.0, 1.0];
-    let mut demo = TessMethod::Direct;
-    println!("demo mode : {:?}", demo);
-    //
-    //
-
     el.run(move |evt, _, ctrl_flow| {
         *ctrl_flow = ControlFlow::Wait;
         match evt {
             Event::LoopDestroyed => return,
-            Event::WindowEvent {event, ..} => match event {
+            Event::WindowEvent {event, window_id} => match event {
+                WindowEvent::Resized(phys_size) => {
+                    //
+                    let surface = windows[&window_id];
+                    //
+                    //
+                    /*
+                    let win_ctx = ctx_tracker.get_current(windows[&window_id].0).unwrap();
+                    let win_ctx = win_ctx.windowed();
+                    win_ctx.resize(phys_size);
+                    */
+                }
+                //
+                //
+                //
+                /*
                 WindowEvent::Resized(phys_size) => surface.ctx().resize(phys_size),
                 WindowEvent::CloseRequested
                 | WindowEvent::KeyboardInput {
@@ -109,7 +120,7 @@ fn main() {
                 } => {
                     demo = demo.toggle();
                     println!("demo mode : {:?}", demo);
-                    surface.ctx().window().request_redraw();
+                    //surface.ctx().window().request_redraw();
                 }
                 WindowEvent::KeyboardInput {
                     input: KeyboardInput {
@@ -120,15 +131,20 @@ fn main() {
                 } => {
                     color = [new_nb(), new_nb(), new_nb(), 1.0];
                     println!("test bg color");
-                    surface.ctx().window().request_redraw();
+                    //surface.ctx().window().request_redraw();
                 }
+                */
                 _ => ()
-            },
+            }
+            Event::MainEventsCleared => surface.ctx().window().request_redraw(),
             Event::RedrawRequested(_) => {
+                //*
                 back_buffer = surface.back_buffer().unwrap();
                 surface.pipeline_builder().pipeline(
                     &back_buffer,
                     &PipelineState::default().set_clear_color(color),
+                    //|_, _| ()
+                    //*
                     |_, mut shd_gate| {
                         shd_gate.shade(&program, |_, mut rdr_gate| {
                             rdr_gate.render(&RenderState::default(), |mut tess_gate| {
@@ -142,8 +158,10 @@ fn main() {
                             });
                         });
                     }
-                            );
+                    //*/
+                );
                 surface.swap_buffers();
+                //*/
             }
             _ => ()
         }

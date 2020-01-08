@@ -1,18 +1,19 @@
-use glutin::{
-    ElementState, Event, EventsLoop, KeyboardInput,
-    VirtualKeyCode, WindowEvent
-};
-use luminance::context::GraphicsContext;
-use luminance::pipeline::PipelineState;
-use luminance::render_state::RenderState;
+//use glutin::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
+use glutin::event::Event;
+use glutin::event_loop::EventLoop;
+//use luminance::context::GraphicsContext;
+//use luminance::pipeline::PipelineState;
+//use luminance::render_state::RenderState;
 use luminance::shader::program::Program;
-use luminance::tess::{Mode, TessBuilder};
-use luminance_windowing::{WindowDim, WindowOpt};
+//use luminance::tess::{Mode, TessBuilder};
+//use luminance_windowing::{WindowDim, WindowOpt};
 
 mod winger;
-use winger::{WinSurface, ContextTracker};
-/*
+//use winger::{WinSurface, ContextTracker};
+
 mod in_utils;
+use in_utils::Semantics;
+/*
 use in_utils::{
     TRI_DEINT_POS_VERTS, TRI_DEINT_COL_VERTS, TRI_INDS,
     Semantics, TessMethod, new_nb, trivert
@@ -23,10 +24,11 @@ const VS: &'static str = include_str!("../ressources/simple-vs.glsl");
 const FS: &'static str = include_str!("../ressources/simple-fs.glsl");
 
 fn main() {
-    let mut el = EventsLoop::new();
-    let mut ctx_tracker = ContextTracker::default();
-    let mut windows = std::collections::HashMap::new();
+    let mut el = EventLoop::new();
+    //let mut ctx_tracker = ContextTracker::default();
+    //let mut windows = std::collections::HashMap::new();
 
+    /*
     for win_idx in 0..3 {
         let surface = WinSurface::new(
             &el,
@@ -36,6 +38,7 @@ fn main() {
         ).expect("Glutin surface creation");
         windows.insert(win_idx, surface);
     }
+    */
     //
     //
     //
@@ -77,16 +80,26 @@ fn main() {
     //
     //
     //
+    /*
     let mut back_buffer = surface.back_buffer().unwrap();
     let mut color = [0.0, 0.5, 1.0, 1.0];
     let mut demo = TessMethod::Direct;
     println!("demo mode : {:?}", demo);
     let mut resized = false;
+    */
     //
     //
     //
     let mut quit_app = false;
 
+    el.run(move |evt, _, ctrl_flow| { match evt {
+        Event::LoopDestroyed => return,
+        //
+        //
+        //
+        _ => ()
+    }});
+    /*
     'app: loop {
         el.poll_events(|evt| { if let Event::WindowEvent { event, ..} = evt { match event {
             WindowEvent::CloseRequested
@@ -107,21 +120,25 @@ fn main() {
                 },
                 ..
             } => {
-                demo = demo.toggle();
-                println!("demo mode : {:?}", demo);
+                //demo = demo.toggle();
+                //println!("demo mode : {:?}", demo);
             }
+            /*
             WindowEvent::KeyboardInput {
                 input: KeyboardInput {state: ElementState::Released, ..},
                 ..
             } => color = [new_nb(), new_nb(), new_nb(), 1.0],
             WindowEvent::Resized(_) | WindowEvent::HiDpiFactorChanged(_) => resized = true,
+            */
             _ => ()
         }}});
         if quit_app { break 'app; }
+        /*
         if resized {
             back_buffer = surface.back_buffer().unwrap();
             resized = false;
         }
+        */
 
         //
         /*
@@ -147,4 +164,5 @@ fn main() {
         //
         //
     }
+    */
 }

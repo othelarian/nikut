@@ -20,8 +20,9 @@
   * change the background color (with refresh) => DONE
   * integrate input to change bg color => DONE
   * try add some gl from hello_world_glutin.rs => DONE
-  * move the window in a hashmap kind of struct => WIP
-  * launch three windows (connected to the hasmap) => WIP
+  * move the window in a hashmap kind of struct => ABORTED
+  * launch three windows (connected to the hasmap) =>ABORTED
+  * change the version of glutin (new api!) => WIP
 
 ## PREPARED
 

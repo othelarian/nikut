@@ -2,12 +2,13 @@ use gl;
 use glutin::{Api, ContextBuilder, GlProfile, GlRequest, PossiblyCurrent, WindowedContext};
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::EventLoop;
-use glutin::window::{Fullscreen, WindowBuilder};
+use glutin::window::{Fullscreen, WindowBuilder, WindowId};
 use luminance::context::GraphicsContext;
 use luminance::framebuffer::Framebuffer;
 use luminance::state::{GraphicsState, StateQueryError};
 use luminance::texture::{Dim2, Flat};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt;
 use std::os::raw::c_void;
 use std::rc::Rc;
@@ -118,204 +119,62 @@ impl WinSurface {
     }
 }
 
-pub use self::context_tracker::ContextTracker;
+#[derive(Default)]
+pub struct WinManager {
+    current: Option<WindowId>,
+    others: HashMap<WindowId, WinSurface>
+}
 
-mod context_tracker {
-    use glutin::{
-        Context, ContextCurrentState, ContextError, NotCurrent,
-        PossiblyCurrent, WindowedContext
-    };
-    use takeable_option::Takeable;
-
-    pub enum ContextWrapper<T: ContextCurrentState> {
-        Headless(Context<T>),
-        Windowed(WindowedContext<T>)
+impl WinManager {
+    pub fn insert_window(&mut self, surface: WinSurface) {
+        if surface.ctx().is_current() {
+            if let Some(old_curr) = self.current { unsafe {
+                if let Some(old_curr_surface) = self.others.get_mut(&old_curr) {
+                    old_curr_surface.ctx().treat_as_not_current();
+                }
+            }}
+            self.current = Some(surface.ctx().window().id());
+        }
+        self.others.insert(surface.ctx().window().id(), surface);
     }
 
-    impl<T: ContextCurrentState> ContextWrapper<T> {
-        pub fn headless(&mut self) -> &mut Context<T> {
-            match self {
-                ContextWrapper::Headless(ref mut ctx) => ctx,
-                _ => panic!()
-            }
-        }
-
-        pub fn windowed(&mut self) -> &mut WindowedContext<T> {
-            match self {
-                ContextWrapper::Windowed(ref mut ctx) => ctx,
-                _ => panic!()
-            }
-        }
-
-        fn map<T2: ContextCurrentState, FH, FW>(self, fh: FH, fw: FW)
-        -> Result<ContextWrapper<T2>, (Self, ContextError)>
-        where
-            FH: FnOnce(Context<T>) -> Result<Context<T2>, (Context<T>, ContextError)>,
-            FW: FnOnce(WindowedContext<T>) -> Result<WindowedContext<T2>, (WindowedContext<T>, ContextError)>
-        {
-            match self {
-                ContextWrapper::Headless(ctx) => match fh(ctx) {
-                    Ok(ctx) => Ok(ContextWrapper::Headless(ctx)),
-                    Err((ctx, err)) => Err((ContextWrapper::Headless(ctx), err))
-                }
-                ContextWrapper::Windowed(ctx) => match fw(ctx) {
-                    Ok(ctx) => Ok(ContextWrapper::Windowed(ctx)),
-                    Err((ctx, err)) => Err((ContextWrapper::Windowed(ctx), err))
-                }
-            }
-        }
+    pub fn remove_window(&mut self, id: WindowId) {
+        if Some(id) == self.current { self.current.take(); }
+        self.others.remove(&id);
     }
 
-    pub enum ContextCurrentWrapper {
-        PossiblyCurrent(ContextWrapper<PossiblyCurrent>),
-        NotCurrent(ContextWrapper<NotCurrent>)
-    }
-
-    impl ContextCurrentWrapper {
-        fn map_possibly<F>(self, f: F) -> Result<Self, (Self, ContextError)>
-        where
-            F: FnOnce(ContextWrapper<PossiblyCurrent>) -> Result<
-                ContextWrapper<NotCurrent>,
-                (ContextWrapper<PossiblyCurrent>, ContextError)
-            >
-        {
-            match self {
-                ret @ ContextCurrentWrapper::NotCurrent(_) => Ok(ret),
-                ContextCurrentWrapper::PossiblyCurrent(ctx) => match f(ctx) {
-                    Ok(ctx) => Ok(ContextCurrentWrapper::NotCurrent(ctx)),
-                    Err((ctx, err)) => Err((ContextCurrentWrapper::PossiblyCurrent(ctx), err))
-                }
-            }
-        }
-
-        fn map_not<F>(self, f: F) -> Result<Self, (Self, ContextError)>
-        where
-            F: FnOnce(ContextWrapper<NotCurrent>) -> Result<
-                ContextWrapper<PossiblyCurrent>,
-                (ContextWrapper<NotCurrent>, ContextError)
-            >
-        {
-            match self {
-                ret @ ContextCurrentWrapper::PossiblyCurrent(_) => Ok(ret),
-                ContextCurrentWrapper::NotCurrent(ctx) => match f(ctx) {
-                    Ok(ctx) => Ok(ContextCurrentWrapper::PossiblyCurrent(ctx)),
-                    Err((ctx, err)) => Err((ContextCurrentWrapper::NotCurrent(ctx), err))
-                }
-            }
-        }
-    }
-
-    pub type ContextId = usize;
-
-    #[derive(Default)]
-    pub struct ContextTracker {
-        current: Option<ContextId>,
-        others: Vec<(ContextId, Takeable<ContextCurrentWrapper>)>,
-        next_id: ContextId
-    }
-
-    impl ContextTracker {
-        pub fn insert(&mut self, ctx: ContextCurrentWrapper) -> ContextId {
-            let id = self.next_id;
-            self.next_id += 1;
-            if let ContextCurrentWrapper::PossiblyCurrent(_) = ctx {
-                if let Some(old_curr) = self.current {
-                    unsafe {
-                        self.modify(old_curr, |ctx| {
-                            ctx.map_possibly(|ctx| {ctx.map(
-                                |ctx| Ok(ctx.treat_as_not_current()),
-                                |ctx| Ok(ctx.treat_as_not_current())
-                            )})
-                        })
-                    }.unwrap()
-                }
-                self.current = Some(id);
-            }
-            self.others.push((id, Takeable::new(ctx)));
-            id
-        }
-
-        pub fn remove(&mut self, id: ContextId) -> ContextCurrentWrapper {
-            if Some(id) == self.current { self.current.take(); }
-            let this_idx = self
-                .others
-                .binary_search_by(|(sid, _)| sid.cmp(&id))
-                .unwrap();
-            Takeable::take(&mut self.others.remove(this_idx).1)
-        }
-
-        fn modify<F>(&mut self, id: ContextId, f: F) -> Result<(), ContextError>
-        where
-            F: FnOnce(ContextCurrentWrapper) -> Result<
-                ContextCurrentWrapper,
-                (ContextCurrentWrapper, ContextError)
-            >
-        {
-            let this_idx = self
-                .others
-                .binary_search_by(|(sid, _)| sid.cmp(&id))
-                .unwrap();
-            let this_ctx = Takeable::take(&mut self.others[this_idx].1);
-            match f(this_ctx) {
-                Err((ctx, err)) => {
-                    self.others[this_idx].1 = Takeable::new(ctx);
+    pub fn get_current(&mut self, id: WindowId) -> Result<&mut WinSurface, ContextError> {
+        let surface = self.others.get_mut(&id).unwrap();
+        if Some(id) != self.current {
+            let old_curr = self.current.take();
+            unsafe {
+                if let Err((_, err)) = surface.ctx().make_current() {
+                    if let Some(old_curr) = old_curr {
+                        let old_win = self.others.get_mut(&old_curr).unwrap();
+                        if let Err((_, err2)) = old_win.ctx().make_not_current() {
+                            panic!("Couldn't make or not make current: {:?}, {:?}", err, err2);
+                        }
+                    }
+                    if let Err((_, err2)) = surface.ctx().make_not_current() {
+                        panic!("Couldn't make or not make current: {:?}, {:?}", err, err2);
+                    }
                     Err(err)
                 }
-                Ok(ctx) => {
-                    self.others[this_idx].1 = Takeable::new(ctx);
-                    Ok(())
+                else {
+                    self.current = Some(id);
+                    if let Some(old_curr) = old_curr {
+                        self.others.get_mut(&old_curr)
+                            .unwrap()
+                            .ctx()
+                            .treat_as_not_current();
+                    }
+                    Ok(surface)
                 }
             }
         }
-
-        pub fn get_current(&mut self, id: ContextId)
-        -> Result<&mut ContextWrapper<PossiblyCurrent>, ContextError> {
-            let this_idx = self
-                .others
-                .binary_search_by(|(sid, _)| sid.cmp(&id))
-                .unwrap();
-            unsafe {
-                if Some(id) != self.current {
-                    let old_curr = self.current.take();
-                    if let Err(err) = self.modify(id, |ctx| {
-                        ctx.map_not(|ctx| {ctx.map(
-                            |ctx| ctx.make_current(),
-                            |ctx| ctx.make_current()
-                        )})
-                    }) {
-                        if let Some(old_curr) = old_curr {
-                            if let Err(err2) = self.modify(old_curr, |ctx| {
-                                ctx.map_possibly(|ctx| {ctx.map(
-                                    |ctx| ctx.make_not_current(),
-                                    |ctx| ctx.make_not_current()
-                                )})
-                            }) {
-                                panic!("Couldn't make or not make current: {:?}, {:?}", err, err2);
-                            }
-                        }
-                        if let Err(err2) = self.modify(id, |ctx| {
-                            ctx.map_possibly(|ctx| {ctx.map(
-                                |ctx| ctx.make_not_current(),
-                                |ctx| ctx.make_not_current()
-                            )})
-                        }) {
-                            panic!("Couldn't male or not make current: {:?}, {:?}", err, err2);
-                        }
-                        return Err(err);
-                    }
-                    self.current = Some(id);
-                    if let Some(old_curr) = old_curr {
-                        self.modify(old_curr, |ctx| {ctx.map_possibly(|ctx| {ctx.map(
-                            |ctx| Ok(ctx.treat_as_not_current()),
-                            |ctx| Ok(ctx.treat_as_not_current())
-                        )})}).unwrap();
-                    }
-                }
-                match *self.others[this_idx].1 {
-                    ContextCurrentWrapper::PossiblyCurrent(ref mut ctx) => Ok(ctx),
-                    ContextCurrentWrapper::NotCurrent(_) => panic!()
-                }
-            }
+        else {
+            if surface.ctx().is_current() { Ok(surface) }
+            else { panic!() }
         }
     }
 }

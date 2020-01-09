@@ -8,7 +8,7 @@ use luminance::tess::{Mode, TessBuilder};
 use luminance_windowing::{WindowDim, WindowOpt};
 
 mod winger;
-use winger::{WinSurface, ContextTracker};
+use winger::{WinSurface, WinManager};
 
 mod in_utils;
 use in_utils::{TRIS_FULL, Semantics, TessMethod, new_nb};
@@ -18,8 +18,7 @@ const FS: &'static str = include_str!("../ressources/simple-fs.glsl");
 
 fn main() {
     let el = EventLoop::new();
-    let mut ctx_tracker = ContextTracker::default();
-    let mut windows = std::collections::HashMap::new();
+    let win_manager = WinManager::default();
 
     /*
     for win_idx in 0..3 {
@@ -33,19 +32,14 @@ fn main() {
     }
     */
     //
-    let mut surface = WinSurface::new(
+    let surface = WinSurface::new(
         &el,
         WindowDim::Windowed(800, 400),
         "Test Lumglut hi",
         WindowOpt::default()
     ).expect("Glutin surface creation");
     //
-    let win_id = surface.ctx().window().id();
-    let ctx_id = ctx_tracker.insert(ContextCurrentWrapper::PossiblyCurrent(
-        ContextWrapper::Windoewed()
-    ));
-    //
-    windows.insert(win_id, surface);
+    win_manager.insert(surface);
     //
     //
 

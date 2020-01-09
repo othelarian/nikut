@@ -31,6 +31,13 @@
   * make one window with the ContextTracker => WIP
   * launch 3 windows in parallel
 
+## DAY 4 (2020/01/09)
+
+* finish the day 4 goals => WIP
+  * use the context tracker for managing opengl and surface => ABORTED
+  * construct a window manager, who take care of opengl context internally => WIP
+  * launch 3 windows in parallel
+
 ## PREPARED
 
 

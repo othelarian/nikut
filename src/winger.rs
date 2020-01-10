@@ -1,7 +1,7 @@
 use gl;
 use glutin::{
     Api, ContextBuilder, ContextCurrentState, GlProfile, GlRequest,
-    PossiblyCurrent, WindowedContext
+    NotCurrent, PossiblyCurrent, WindowedContext
 };
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::EventLoop;
@@ -11,6 +11,7 @@ use luminance::framebuffer::Framebuffer;
 use luminance::state::{GraphicsState, StateQueryError};
 use luminance::texture::{Dim2, Flat};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt;
 use std::os::raw::c_void;
 use std::rc::Rc;
@@ -23,7 +24,8 @@ pub use luminance_windowing::{CursorMode, Surface, WindowDim, WindowOpt};
 pub enum WinError {
     CreationError(CreationError),
     ContextError(ContextError),
-    GraphicsStateError(StateQueryError)
+    GraphicsStateError(StateQueryError),
+    WinInternError(&'static str)
 }
 
 impl fmt::Display for WinError {
@@ -34,7 +36,9 @@ impl fmt::Display for WinError {
             WinError::ContextError(ref e) =>
                 write!(f, "Win OGL context creation error: {}", e),
             WinError::GraphicsStateError(ref e) =>
-                write!(f, "OGL graphics state init error: {}", e)
+                write!(f, "OGL graphics state init error: {}", e),
+            WinError::WinInternError(e) =>
+                write!(f, "Win Intern error: {}", e)
         }
     }
 }
@@ -52,7 +56,8 @@ impl From<ContextError> for WinError {
 }
 
 pub struct WinSurface {
-    win_ctx: WindowedContext<PossiblyCurrent>,
+    //win_ctx: WindowedContext<PossiblyCurrent>,
+    win_ctx: CtxCurrWrapper,
     gfx_state: Rc<RefCell<GraphicsState>>
 }
 
@@ -97,53 +102,69 @@ impl WinSurface {
         win_ctx.window().set_visible(true);
         let gfx_state = GraphicsState::new().map_err(WinError::GraphicsStateError)?;
         Ok(WinSurface {
-            win_ctx,
+            //win_ctx,
+            //win_ctx: Takeable::new(CtxCurrWrapper::PossiblyCurrent(win_ctx)),
+            win_ctx: CtxCurrWrapper::PossiblyCurrent(win_ctx),
             gfx_state: Rc::new(RefCell::new(gfx_state))
         })
     }
 
     pub fn back_buffer(&mut self) -> Result<Framebuffer<Flat, Dim2, (), ()>, WinError> {
-        let (w, h) = self.win_ctx.window().inner_size().into();
-        Ok(Framebuffer::back_buffer(self, [w, h]))
+        match self.win_ctx {
+            CtxCurrWrapper::PossiblyCurrent(ctx) => {
+                let (w, h) = ctx.window().inner_size().into();
+                Ok(Framebuffer::back_buffer(self, [w, h]))
+            }
+            CtxCurrWrapper::NotCurrent(ctx) =>
+                Err(WinError::WinInternError("using back buffer of not current ctx"))
+        }
     }
-
-    pub fn ctx(&mut self) -> &WindowedContext<PossiblyCurrent> { &self.win_ctx }
 
     pub fn swap_buffers(&mut self) {
-        self.win_ctx.swap_buffers().unwrap();
+        if let CtxCurrWrapper::PossiblyCurrent(ctx) = self.win_ctx {
+            ctx.swap_buffers().unwrap();
+        }
     }
+
+    //pub fn ctx(&mut self) -> &mut Takeable<WindowedContext<dyn ContextCurrentState>> { &mut self.win_ctx }
+    //pub fn ctx(&mut self) -> &WindowedContext<PossiblyCurrent> { &self.win_ctx }
+    pub fn ctx(mut self) -> CtxCurrWrapper { self.win_ctx }
+}
+
+enum CtxCurrWrapper {
+    PossiblyCurrent(WindowedContext<PossiblyCurrent>),
+    NotCurrent(WindowedContext<NotCurrent>)
 }
 
 #[derive(Default)]
 pub struct WinManager {
     current: Option<WindowId>,
     //others: HashMap<WindowId, WinSurface>
-    others: Vec<(WindowId, Takeable<WinSurface>)>
+    //others: Vec<(WindowId, Takeable<WinSurface>)>
+    others: HashMap<WindowId, Takeable<WinSurface>>
 }
 
 impl WinManager {
-    pub fn insert_window(&mut self, mut surface: WinSurface) -> WindowId {
-        let id = surface.ctx().window().id();
-        if surface.ctx().is_current() {
-            if let Some(old_curr) = self.current { unsafe {
-                /*
-                if let Some(old_curr_surface) = self.others.get_mut(&old_curr) {
-                    //
-                    //
-                    //
-                    old_curr_surface.ctx().treat_as_not_current();
+    pub fn insert_window(&mut self, mut surface: WinSurface) -> Result<WindowId, WinError> {
+        match surface.win_ctx {
+            CtxCurrWrapper::PossiblyCurrent(ctx) => {
+                let id = ctx.window().id();
+                if let Some(old_curr) = self.current {
+                    if let Some(old_curr_surf) = self.others.get_mut(&old_curr) {
+                        let old_win = Takeable::take(old_curr_surf);
+                        if let CtxCurrWrapper::PossiblyCurrent(ctx) = old_win.ctx() {
+                            unsafe { ctx.treat_as_not_current(); }
+                        }
+                        self.others[&old_curr] = Takeable::new(old_win);
+                    }
+                    self.current = Some(id);
                 }
-                */
-                //
-                self.others.entry(old_curr).and_modify(|old_surface| {
-                    old_surface.ctx().clone().treat_as_not_current();
-                });
-                //
-            }}
-            self.current = Some(id);
+                self.others.insert(id, Takeable::new(surface));
+                Ok(id)
+            }
+            CtxCurrWrapper::NotCurrent(_) =>
+                Err(WinError::WinInternError("This window current ctx is not current!"))
         }
-        self.others.insert(id, surface);
-        id
     }
 
     pub fn remove_window(&mut self, id: WindowId) {

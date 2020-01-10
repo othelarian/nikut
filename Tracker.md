@@ -39,6 +39,11 @@
   * test the window manager with one window, fully featured => WIP
   * launch 3 windows in parallel
 
+## DAY 5 (2020/01/10)
+
+* always the same, finish the day 4 => WIP
+  * go back and try to change from &mut to mut (maybe with takeable) => WIP
+
 ## PREPARED
 
 

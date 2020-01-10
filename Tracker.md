@@ -35,7 +35,8 @@
 
 * finish the day 4 goals => WIP
   * use the context tracker for managing opengl and surface => ABORTED
-  * construct a window manager, who take care of opengl context internally => WIP
+  * construct a window manager, who take care of opengl context internally => DONE
+  * test the window manager with one window, fully featured => WIP
   * launch 3 windows in parallel
 
 ## PREPARED

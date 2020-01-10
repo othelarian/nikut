@@ -1,5 +1,8 @@
 use gl;
-use glutin::{Api, ContextBuilder, GlProfile, GlRequest, PossiblyCurrent, WindowedContext};
+use glutin::{
+    Api, ContextBuilder, ContextCurrentState, GlProfile, GlRequest,
+    PossiblyCurrent, WindowedContext
+};
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::EventLoop;
 use glutin::window::{Fullscreen, WindowBuilder, WindowId};
@@ -8,14 +11,10 @@ use luminance::framebuffer::Framebuffer;
 use luminance::state::{GraphicsState, StateQueryError};
 use luminance::texture::{Dim2, Flat};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::fmt;
 use std::os::raw::c_void;
 use std::rc::Rc;
-
-#[path = "in_utils.rs"]
-mod in_utils;
-use in_utils::TessMethod;
+use takeable_option::Takeable;
 
 pub use glutin::{ContextError, CreationError};
 pub use luminance_windowing::{CursorMode, Surface, WindowDim, WindowOpt};
@@ -54,9 +53,7 @@ impl From<ContextError> for WinError {
 
 pub struct WinSurface {
     win_ctx: WindowedContext<PossiblyCurrent>,
-    gfx_state: Rc<RefCell<GraphicsState>>,
-    demo: TessMethod,
-    bgcolor: [f32; 4]
+    gfx_state: Rc<RefCell<GraphicsState>>
 }
 
 unsafe impl GraphicsContext for WinSurface {
@@ -101,9 +98,7 @@ impl WinSurface {
         let gfx_state = GraphicsState::new().map_err(WinError::GraphicsStateError)?;
         Ok(WinSurface {
             win_ctx,
-            gfx_state: Rc::new(RefCell::new(gfx_state)),
-            demo: TessMethod::Direct,
-            bgcolor: [0.0, 0.0, 0.0, 1.0]
+            gfx_state: Rc::new(RefCell::new(gfx_state))
         })
     }
 
@@ -122,20 +117,33 @@ impl WinSurface {
 #[derive(Default)]
 pub struct WinManager {
     current: Option<WindowId>,
-    others: HashMap<WindowId, WinSurface>
+    //others: HashMap<WindowId, WinSurface>
+    others: Vec<(WindowId, Takeable<WinSurface>)>
 }
 
 impl WinManager {
-    pub fn insert_window(&mut self, surface: WinSurface) {
+    pub fn insert_window(&mut self, mut surface: WinSurface) -> WindowId {
+        let id = surface.ctx().window().id();
         if surface.ctx().is_current() {
             if let Some(old_curr) = self.current { unsafe {
+                /*
                 if let Some(old_curr_surface) = self.others.get_mut(&old_curr) {
+                    //
+                    //
+                    //
                     old_curr_surface.ctx().treat_as_not_current();
                 }
+                */
+                //
+                self.others.entry(old_curr).and_modify(|old_surface| {
+                    old_surface.ctx().clone().treat_as_not_current();
+                });
+                //
             }}
-            self.current = Some(surface.ctx().window().id());
+            self.current = Some(id);
         }
-        self.others.insert(surface.ctx().window().id(), surface);
+        self.others.insert(id, surface);
+        id
     }
 
     pub fn remove_window(&mut self, id: WindowId) {
@@ -176,5 +184,17 @@ impl WinManager {
             if surface.ctx().is_current() { Ok(surface) }
             else { panic!() }
         }
+    }
+
+    fn modify<F, T: ContextCurrentState>(&mut self, ctx: WindowedContext<T>, f: F) -> Result<(), ContextError>
+    where
+        F: FnOnce(WindowedContext<T>)
+        -> Result<WindowedContext<T>, (WindowedContext<T>, ContextError)>
+    {
+        //
+        //
+        //
+        Ok(())
+        //
     }
 }

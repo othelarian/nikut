@@ -1,11 +1,13 @@
 use glutin::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
+use glutin::window::WindowId;
 use luminance::context::GraphicsContext;
 use luminance::pipeline::PipelineState;
 use luminance::render_state::RenderState;
 use luminance::shader::program::Program;
-use luminance::tess::{Mode, TessBuilder};
+use luminance::tess::{Mode, Tess, TessBuilder};
 use luminance_windowing::{WindowDim, WindowOpt};
+use std::collections::HashMap;
 
 mod winger;
 use winger::{WinSurface, WinManager};
@@ -16,9 +18,55 @@ use in_utils::{TRIS_FULL, Semantics, TessMethod, new_nb};
 const VS: &'static str = include_str!("../ressources/simple-vs.glsl");
 const FS: &'static str = include_str!("../ressources/simple-fs.glsl");
 
+struct WinData {
+    redraw: bool,
+    demo: TessMethod,
+    //tesses: [Tess; 4],
+    bgcol: [f32; 4]
+}
+
+impl WinData {
+    //fn new(surface: &mut WinSurface) -> WinData {
+    fn new() -> WinData {
+        /*
+        let direct_tris = TessBuilder::new(&mut surface)
+            .add_vertices(TRIS_FULL.tri_verts.clone())
+            .set_mode(Mode::Triangle)
+            .build()
+            .unwrap();
+        let indexed_tris = TessBuilder::new(&mut surface)
+            .add_vertices(TRIS_FULL.tri_verts)
+            .set_indices(TRIS_FULL.tri_inds)
+            .set_mode(Mode::Triangle)
+            .build()
+            .unwrap();
+        let direct_deint_tris = TessBuilder::new(&mut surface)
+            .add_vertices(TRIS_FULL.tri_deint_pos_verts)
+            .add_vertices(TRIS_FULL.tri_deint_col_verts)
+            .set_mode(Mode::Triangle)
+            .build()
+            .unwrap();
+        let indexed_deint_tris = TessBuilder::new(&mut surface)
+            .add_vertices(TRIS_FULL.tri_deint_pos_verts)
+            .add_vertices(TRIS_FULL.tri_deint_col_verts)
+            .set_indices(TRIS_FULL.tri_inds)
+            .set_mode(Mode::Triangle)
+            .build()
+            .unwrap();
+        */
+        WinData {
+            redraw: false,
+            demo: TessMethod::Direct,
+            //tesses: [],
+            bgcol: [0.0, 0.0, 0.0, 1.0]
+        }
+    }
+}
+
 fn main() {
     let el = EventLoop::new();
-    let win_manager = WinManager::default();
+    let mut win_manager = WinManager::default();
+    let mut win_data: HashMap<WindowId, WinData> = HashMap::default();
 
     /*
     for win_idx in 0..3 {
@@ -39,10 +87,10 @@ fn main() {
         WindowOpt::default()
     ).expect("Glutin surface creation");
     //
-    win_manager.insert(surface);
+    let win_id = win_manager.insert_window(surface);
+    win_data.insert(win_id, WinData::new());
     //
     //
-
 
     // program & tris
     let program = Program::<Semantics, (), ()>::from_strings(None, VS, None, FS)
@@ -54,25 +102,7 @@ fn main() {
         .set_mode(Mode::Triangle)
         .build()
         .unwrap();
-        let indexed_tris = TessBuilder::new(&mut surface)
-        .add_vertices(TRIS_FULL.tri_verts)
-        .set_indices(TRIS_FULL.tri_inds)
-        .set_mode(Mode::Triangle)
-        .build()
-        .unwrap();
-        let direct_deint_tris = TessBuilder::new(&mut surface)
-        .add_vertices(TRIS_FULL.tri_deint_pos_verts)
-        .add_vertices(TRIS_FULL.tri_deint_col_verts)
-        .set_mode(Mode::Triangle)
-        .build()
-        .unwrap();
-        let indexed_deint_tris = TessBuilder::new(&mut surface)
-        .add_vertices(TRIS_FULL.tri_deint_pos_verts)
-        .add_vertices(TRIS_FULL.tri_deint_col_verts)
-        .set_indices(TRIS_FULL.tri_inds)
-        .set_mode(Mode::Triangle)
-        .build()
-        .unwrap();
+
 
     el.run(move |evt, _, ctrl_flow| {
         *ctrl_flow = ControlFlow::Wait;
@@ -80,15 +110,8 @@ fn main() {
             Event::LoopDestroyed => return,
             Event::WindowEvent {event, window_id} => match event {
                 WindowEvent::Resized(phys_size) => {
-                    //
-                    let surface = windows[&window_id];
-                    //
-                    //
-                    /*
-                    let win_ctx = ctx_tracker.get_current(windows[&window_id].0).unwrap();
-                    let win_ctx = win_ctx.windowed();
-                    win_ctx.resize(phys_size);
-                    */
+                    let surface = win_manager.get_current(window_id).unwrap();
+                    surface.ctx().resize(phys_size);
                 }
                 //
                 //
@@ -130,15 +153,22 @@ fn main() {
                 */
                 _ => ()
             }
-            Event::MainEventsCleared => surface.ctx().window().request_redraw(),
-            Event::RedrawRequested(_) => {
-                //*
+            Event::MainEventsCleared => {
+                //
+                //
+                //
+                //surface.ctx().window().request_redraw();
+                //
+                //
+            }
+            Event::RedrawRequested(win_id) => {
+                /*
                 back_buffer = surface.back_buffer().unwrap();
                 surface.pipeline_builder().pipeline(
                     &back_buffer,
                     &PipelineState::default().set_clear_color(color),
                     //|_, _| ()
-                    //*
+                    /*
                     |_, mut shd_gate| {
                         shd_gate.shade(&program, |_, mut rdr_gate| {
                             rdr_gate.render(&RenderState::default(), |mut tess_gate| {
@@ -152,10 +182,10 @@ fn main() {
                             });
                         });
                     }
-                    //*/
+                    */
                 );
                 surface.swap_buffers();
-                //*/
+                */
             }
             _ => ()
         }

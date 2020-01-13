@@ -44,6 +44,12 @@
 * always the same, finish the day 4 => WIP
   * go back and try to change from &mut to mut (maybe with takeable) => WIP
 
+## DAY 6 (2020/01/13)
+
+* another day, same activity => WIP
+  * finish the winger.rs file, fixing the "get_current" function (last part) => DONE
+  * test the first window with the new WinManager => WIP
+
 ## PREPARED
 
 

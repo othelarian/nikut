@@ -1,3 +1,5 @@
+use luminance::context::GraphicsContext;
+use luminance::tess::{Mode, Tess, TessBuilder};
 use luminance_derive::{Semantics, Vertex};
 use rand::Rng;
 
@@ -72,6 +74,35 @@ pub const TRIS_FULL: TriFull = TriFull {
         Colors {color: VertexColor::new([51, 51, 255])}
     ]
 };
+
+pub fn tesses_builder<'a, C: GraphicsContext>(ctx: &'a mut C) {
+    //
+    let direct_tris = TessBuilder::new(&mut ctx)
+        .add_vertices(TRIS_FULL.tri_verts.clone())
+        .set_mode(Mode::Triangle)
+        .build()
+        .unwrap();
+    let indexed_tris = TessBuilder::new(&mut ctx)
+        .add_vertices(TRIS_FULL.tri_verts)
+        .set_indices(TRIS_FULL.tri_inds)
+        .set_mode(Mode::Triangle)
+        .build()
+        .unwrap();
+    let direct_deint_tris = TessBuilder::new(&mut ctx)
+        .add_vertices(TRIS_FULL.tri_deint_pos_verts)
+        .add_vertices(TRIS_FULL.tri_deint_col_verts)
+        .set_mode(Mode::Triangle)
+        .build()
+        .unwrap();
+    let indexed_deint_tris = TessBuilder::new(&mut ctx)
+        .add_vertices(TRIS_FULL.tri_deint_pos_verts)
+        .add_vertices(TRIS_FULL.tri_deint_col_verts)
+        .set_indices(TRIS_FULL.tri_inds)
+        .set_mode(Mode::Triangle)
+        .build()
+        .unwrap();
+    //
+}
 
 #[derive(Copy, Clone, Debug)]
 pub enum TessMethod {

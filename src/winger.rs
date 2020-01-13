@@ -1,6 +1,6 @@
 use gl;
 use glutin::{
-    Api, ContextBuilder, ContextCurrentState, GlProfile, GlRequest,
+    Api, ContextBuilder, GlProfile, GlRequest,
     NotCurrent, PossiblyCurrent, WindowedContext
 };
 use glutin::dpi::LogicalSize;
@@ -109,29 +109,27 @@ impl WinSurface {
         })
     }
 
+    pub fn ctx(&mut self) -> &mut CtxCurrWrapper { &mut self.win_ctx }
+
     pub fn back_buffer(&mut self) -> Result<Framebuffer<Flat, Dim2, (), ()>, WinError> {
-        match self.win_ctx {
+        match &self.win_ctx {
             CtxCurrWrapper::PossiblyCurrent(ctx) => {
                 let (w, h) = ctx.window().inner_size().into();
                 Ok(Framebuffer::back_buffer(self, [w, h]))
             }
-            CtxCurrWrapper::NotCurrent(ctx) =>
+            CtxCurrWrapper::NotCurrent(_) =>
                 Err(WinError::WinInternError("using back buffer of not current ctx"))
         }
     }
 
     pub fn swap_buffers(&mut self) {
-        if let CtxCurrWrapper::PossiblyCurrent(ctx) = self.win_ctx {
+        if let CtxCurrWrapper::PossiblyCurrent(ctx) = &self.win_ctx {
             ctx.swap_buffers().unwrap();
         }
     }
-
-    //pub fn ctx(&mut self) -> &mut Takeable<WindowedContext<dyn ContextCurrentState>> { &mut self.win_ctx }
-    //pub fn ctx(&mut self) -> &WindowedContext<PossiblyCurrent> { &self.win_ctx }
-    pub fn ctx(mut self) -> CtxCurrWrapper { self.win_ctx }
 }
 
-enum CtxCurrWrapper {
+pub enum CtxCurrWrapper {
     PossiblyCurrent(WindowedContext<PossiblyCurrent>),
     NotCurrent(WindowedContext<NotCurrent>)
 }
@@ -145,17 +143,18 @@ pub struct WinManager {
 }
 
 impl WinManager {
-    pub fn insert_window(&mut self, mut surface: WinSurface) -> Result<WindowId, WinError> {
-        match surface.win_ctx {
+    pub fn insert_window(&mut self, surface: WinSurface) -> Result<WindowId, WinError> {
+        match &surface.win_ctx {
             CtxCurrWrapper::PossiblyCurrent(ctx) => {
                 let id = ctx.window().id();
                 if let Some(old_curr) = self.current {
                     if let Some(old_curr_surf) = self.others.get_mut(&old_curr) {
-                        let old_win = Takeable::take(old_curr_surf);
-                        if let CtxCurrWrapper::PossiblyCurrent(ctx) = old_win.ctx() {
-                            unsafe { ctx.treat_as_not_current(); }
+                        let mut old_win = Takeable::take(old_curr_surf);
+                        if let CtxCurrWrapper::PossiblyCurrent(ctx) = old_win.win_ctx {
+                            let nctx = unsafe { ctx.treat_as_not_current() };
+                            old_win.win_ctx = CtxCurrWrapper::NotCurrent(nctx);
                         }
-                        self.others[&old_curr] = Takeable::new(old_win);
+                        *old_curr_surf = Takeable::new(old_win);
                     }
                     self.current = Some(id);
                 }
@@ -172,50 +171,83 @@ impl WinManager {
         self.others.remove(&id);
     }
 
+    pub fn len(&mut self) -> usize { self.others.len() }
+
     pub fn get_current(&mut self, id: WindowId) -> Result<&mut WinSurface, ContextError> {
-        let surface = self.others.get_mut(&id).unwrap();
-        if Some(id) != self.current {
-            let old_curr = self.current.take();
-            unsafe {
-                if let Err((_, err)) = surface.ctx().make_current() {
-                    if let Some(old_curr) = old_curr {
-                        let old_win = self.others.get_mut(&old_curr).unwrap();
-                        if let Err((_, err2)) = old_win.ctx().make_not_current() {
-                            panic!("Couldn't make or not make current: {:?}, {:?}", err, err2);
+        let res = if Some(id) != self.current {
+            let ncurr_ref = self.others.get_mut(&id).unwrap();
+            let mut ncurr_surface = Takeable::take(ncurr_ref);
+            match ncurr_surface.win_ctx {
+                CtxCurrWrapper::PossiblyCurrent(_) => {
+                    *ncurr_ref = Takeable::new(ncurr_surface);
+                    Ok(())
+                }
+                CtxCurrWrapper::NotCurrent(nctx) => unsafe {
+                    match nctx.make_current() {
+                        Err((rctx, err)) => {
+                            match rctx.make_not_current() {
+                                Ok(rctx) => {
+                                    ncurr_surface.win_ctx = CtxCurrWrapper::NotCurrent(rctx);
+                                    *ncurr_ref = Takeable::new(ncurr_surface);
+                                    Err(err)
+                                }
+                                Err((_, err2)) =>
+                                    panic!("Couldn't make and not make current: {:?}, {:?}", err, err2)
+                            }
+                        }
+                        Ok(rctx) => {
+                            ncurr_surface.win_ctx = CtxCurrWrapper::PossiblyCurrent(rctx);
+                            *ncurr_ref = Takeable::new(ncurr_surface);
+                            Ok(())
                         }
                     }
-                    if let Err((_, err2)) = surface.ctx().make_not_current() {
-                        panic!("Couldn't make or not make current: {:?}, {:?}", err, err2);
-                    }
-                    Err(err)
-                }
-                else {
-                    self.current = Some(id);
-                    if let Some(old_curr) = old_curr {
-                        self.others.get_mut(&old_curr)
-                            .unwrap()
-                            .ctx()
-                            .treat_as_not_current();
-                    }
-                    Ok(surface)
                 }
             }
         }
         else {
-            if surface.ctx().is_current() { Ok(surface) }
-            else { panic!() }
+            let ncurr_ref = self.others.get_mut(&id).unwrap();
+            let ncurr_surface = Takeable::take(ncurr_ref);
+            match &ncurr_surface.win_ctx {
+                CtxCurrWrapper::PossiblyCurrent(_) => {
+                    *ncurr_ref = Takeable::new(ncurr_surface);
+                    Ok(())
+                }
+                CtxCurrWrapper::NotCurrent(_) => panic!()
+            }
+        };
+        match res {
+            Ok(()) => {
+                if Some(id) != self.current {
+                    if let Some(oid) = self.current.take() {
+                        let old_ref = self.others.get_mut(&oid).unwrap();
+                        let mut old_surface = Takeable::take(old_ref);
+                        if let CtxCurrWrapper::PossiblyCurrent(octx) = old_surface.win_ctx {
+                            unsafe { old_surface.win_ctx = CtxCurrWrapper::NotCurrent(octx.treat_as_not_current()); }
+                        }
+                        *old_ref = Takeable::new(old_surface);
+                    }
+                    self.current = Some(id);
+                }
+                Ok(self.others.get_mut(&id).unwrap())
+            }
+            Err(err) => {
+                if let Some(oid) = self.current.take() {
+                    let old_ref = self.others.get_mut(&oid).unwrap();
+                    let mut old_surface = Takeable::take(old_ref);
+                    if let CtxCurrWrapper::PossiblyCurrent(octx) = old_surface.win_ctx {
+                        unsafe {
+                            match octx.make_not_current() {
+                                Err((_, err2)) =>
+                                    panic!("Couldn't make and not make current: {:?}, {:?}", err, err2),
+                                Ok(octx) =>
+                                    old_surface.win_ctx = CtxCurrWrapper::NotCurrent(octx)
+                            }
+                        }
+                    }
+                    *old_ref = Takeable::new(old_surface);
+                }
+                Err(err)
+            }
         }
-    }
-
-    fn modify<F, T: ContextCurrentState>(&mut self, ctx: WindowedContext<T>, f: F) -> Result<(), ContextError>
-    where
-        F: FnOnce(WindowedContext<T>)
-        -> Result<WindowedContext<T>, (WindowedContext<T>, ContextError)>
-    {
-        //
-        //
-        //
-        Ok(())
-        //
     }
 }

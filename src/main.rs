@@ -10,7 +10,7 @@ use luminance_windowing::{WindowDim, WindowOpt};
 use std::collections::HashMap;
 
 mod winger;
-use winger::{WinSurface, WinManager};
+use winger::{CtxCurrWrapper, WinManager, WinSurface};
 
 mod in_utils;
 use in_utils::{TRIS_FULL, Semantics, TessMethod, new_nb};
@@ -21,46 +21,46 @@ const FS: &'static str = include_str!("../ressources/simple-fs.glsl");
 struct WinData {
     redraw: bool,
     demo: TessMethod,
-    //tesses: [Tess; 4],
+    tesses: Option<[Tess; 4]>,
     bgcol: [f32; 4]
 }
 
 impl WinData {
-    //fn new(surface: &mut WinSurface) -> WinData {
     fn new() -> WinData {
-        /*
-        let direct_tris = TessBuilder::new(&mut surface)
-            .add_vertices(TRIS_FULL.tri_verts.clone())
-            .set_mode(Mode::Triangle)
-            .build()
-            .unwrap();
-        let indexed_tris = TessBuilder::new(&mut surface)
-            .add_vertices(TRIS_FULL.tri_verts)
-            .set_indices(TRIS_FULL.tri_inds)
-            .set_mode(Mode::Triangle)
-            .build()
-            .unwrap();
-        let direct_deint_tris = TessBuilder::new(&mut surface)
-            .add_vertices(TRIS_FULL.tri_deint_pos_verts)
-            .add_vertices(TRIS_FULL.tri_deint_col_verts)
-            .set_mode(Mode::Triangle)
-            .build()
-            .unwrap();
-        let indexed_deint_tris = TessBuilder::new(&mut surface)
-            .add_vertices(TRIS_FULL.tri_deint_pos_verts)
-            .add_vertices(TRIS_FULL.tri_deint_col_verts)
-            .set_indices(TRIS_FULL.tri_inds)
-            .set_mode(Mode::Triangle)
-            .build()
-            .unwrap();
-        */
         WinData {
             redraw: false,
             demo: TessMethod::Direct,
-            //tesses: [],
+            tesses: None,
             bgcol: [0.0, 0.0, 0.0, 1.0]
         }
     }
+}
+
+fn tesses<C: GraphicsContext>(surface: &mut C) {
+    let direct_tris = TessBuilder::new(&mut surface)
+        .add_vertices(TRIS_FULL.tri_verts.clone())
+        .set_mode(Mode::Triangle)
+        .build()
+        .unwrap();
+    let indexed_tris = TessBuilder::new(&mut surface)
+        .add_vertices(TRIS_FULL.tri_verts)
+        .set_indices(TRIS_FULL.tri_inds)
+        .set_mode(Mode::Triangle)
+        .build()
+        .unwrap();
+    let direct_deint_tris = TessBuilder::new(&mut surface)
+        .add_vertices(TRIS_FULL.tri_deint_pos_verts)
+        .add_vertices(TRIS_FULL.tri_deint_col_verts)
+        .set_mode(Mode::Triangle)
+        .build()
+        .unwrap();
+    let indexed_deint_tris = TessBuilder::new(&mut surface)
+        .add_vertices(TRIS_FULL.tri_deint_pos_verts)
+        .add_vertices(TRIS_FULL.tri_deint_col_verts)
+        .set_indices(TRIS_FULL.tri_inds)
+        .set_mode(Mode::Triangle)
+        .build()
+        .unwrap();
 }
 
 fn main() {
@@ -80,39 +80,56 @@ fn main() {
     }
     */
     //
-    let surface = WinSurface::new(
+    let mut surface = WinSurface::new(
         &el,
         WindowDim::Windowed(800, 400),
         "Test Lumglut hi",
         WindowOpt::default()
     ).expect("Glutin surface creation");
     //
-    let win_id = win_manager.insert_window(surface);
-    win_data.insert(win_id, WinData::new());
-    //
+    //let surface = win_manager.get_current(win_id);
     //
 
-    // program & tris
+
+    //
+    let win_id = win_manager.insert_window(surface).unwrap();
+    //win_data.insert(win_id, WinData::new());
+    //
+
     let program = Program::<Semantics, (), ()>::from_strings(None, VS, None, FS)
         .expect("program creation")
         .ignore_warnings();
 
+    /*
     let direct_tris = TessBuilder::new(&mut surface)
         .add_vertices(TRIS_FULL.tri_verts.clone())
         .set_mode(Mode::Triangle)
         .build()
         .unwrap();
+    */
 
 
     el.run(move |evt, _, ctrl_flow| {
-        *ctrl_flow = ControlFlow::Wait;
+        //*ctrl_flow = ControlFlow::Wait;
         match evt {
             Event::LoopDestroyed => return,
             Event::WindowEvent {event, window_id} => match event {
                 WindowEvent::Resized(phys_size) => {
                     let surface = win_manager.get_current(window_id).unwrap();
-                    surface.ctx().resize(phys_size);
+                    match surface.ctx() {
+                        CtxCurrWrapper::PossiblyCurrent(ctx) => ctx.resize(phys_size),
+                        CtxCurrWrapper::NotCurrent(_) => panic!("Error with opengl")
+                    }
                 }
+                WindowEvent::CloseRequested
+                | WindowEvent::KeyboardInput {
+                    input: KeyboardInput {
+                        state: ElementState::Released,
+                        virtual_keycode: Some(VirtualKeyCode::Escape),
+                        ..
+                    },
+                    ..
+                } => win_manager.remove_window(window_id),
                 //
                 //
                 //
@@ -162,6 +179,16 @@ fn main() {
                 //
             }
             Event::RedrawRequested(win_id) => {
+                let surface = win_manager.get_current(win_id).unwrap();
+                let back_buffer = surface.back_buffer().unwrap();
+                surface.pipeline_builder().pipeline(
+                    &back_buffer,
+                    &PipelineState::default().set_clear_color([0.0, 0.0, 0.0, 1.0]),
+                    |_, _| ()
+                );
+                surface.swap_buffers();
+                //
+                //
                 /*
                 back_buffer = surface.back_buffer().unwrap();
                 surface.pipeline_builder().pipeline(
@@ -189,5 +216,7 @@ fn main() {
             }
             _ => ()
         }
+        if win_manager.len() == 0 { *ctrl_flow = ControlFlow::Exit }
+        else { *ctrl_flow = ControlFlow::Wait }
     });
 }

@@ -65,6 +65,10 @@ unsafe impl GraphicsContext for WinSurface {
     fn state(&self) -> &Rc<RefCell<GraphicsState>> { &self.gfx_state }
 }
 
+unsafe impl GraphicsContext for &mut WinSurface {
+    fn state(&self) -> &Rc<RefCell<GraphicsState>> { &self.gfx_state }
+}
+
 impl WinSurface {
     pub fn new<T>(el: &EventLoop<T>, dim: WindowDim, title: &str, win_opt: WindowOpt)
     -> Result<Self, WinError> {

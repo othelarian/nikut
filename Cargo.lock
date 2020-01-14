@@ -370,6 +370,13 @@ dependencies = [
 [[package]]
 name = "luminance"
 version = "0.38.0"
+dependencies = [
+ "gl 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "luminance"
+version = "0.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "gl 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -471,7 +478,7 @@ version = "0.1.0"
 dependencies = [
  "gl 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glutin 0.22.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "luminance 0.38.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "luminance 0.38.0",
  "luminance-derive 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "luminance-windowing 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -8,7 +8,6 @@ use luminance::shader::program::Program;
 use luminance::tess::{Mode, Tess, TessBuilder};
 use luminance_windowing::{WindowDim, WindowOpt};
 use std::collections::HashMap;
-use std::rc::Rc;
 
 mod winger;
 use winger::{CtxCurrWrapper, WinManager, WinSurface};
@@ -84,7 +83,7 @@ fn main() {
     let mut win_datas: HashMap<WindowId, WinData> = HashMap::default();
 
     //*
-    for win_idx in 0..1 {
+    for win_idx in 0..3 {
         let surface = WinSurface::new(
             &el,
             WindowDim::Windowed(800, 400),
@@ -177,6 +176,13 @@ fn main() {
                 let back_buffer = surface.back_buffer().unwrap();
                 let win_data = win_datas.get(&win_id).unwrap();
                 //
+                let tess = TessBuilder::new(surface)
+                    .add_vertices(TRIS_FULL.tri_verts.clone())
+                    .set_mode(Mode::Triangle)
+                    .build()
+                    .unwrap();
+                //
+                //
                 surface.pipeline_builder().pipeline(
                 //win_manager.pipeline_builder().pipeline(
                 //
@@ -186,13 +192,15 @@ fn main() {
                         shd_gate.shade(&program, |_, mut rdr_gate| {
                             //*
                             rdr_gate.render(&RenderState::default(), |mut tess_gate| {
-                                let tess = match win_data.get_mode() {
+                                let _tess = match win_data.get_mode() {
                                     TessMethod::Direct => &win_data.tesses[0],
                                     TessMethod::Indexed => &win_data.tesses[1],
                                     TessMethod::DirectDeinter => &win_data.tesses[2],
                                     TessMethod::IndexedDeinter => &win_data.tesses[3]
                                 };
-                                tess_gate.render(tess);
+                                //
+                                //
+                                tess_gate.render(&tess);
                             });
                             //*/
                         });

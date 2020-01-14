@@ -243,15 +243,12 @@ impl WinManager {
                         }
                         Ok(rctx) => {
                             //
-                            //ncurr_surface.
-                            /*if let Some(gfx) = &self.gfx_state {
-                                //
-                                //
-                                let mut state = gfx.borrow_mut();
-                                //
-                                state = GraphicsState::get_from_context().unwrap();
-                                //
-                            }*/
+                            /*
+                            if let Some(gfx) = &self.gfx_state {
+                                //let mut state = gfx.borrow_mut();
+                                gfx.replace(GraphicsState::swap_multi().unwrap());
+                            }
+                            */
                             //
                             ncurr_surface.win_ctx = CtxCurrWrapper::PossiblyCurrent(rctx);
                             *ncurr_ref = Takeable::new(ncurr_surface);
@@ -267,6 +264,11 @@ impl WinManager {
             match &ncurr_surface.win_ctx {
                 CtxCurrWrapper::PossiblyCurrent(_) => {
                     //
+                    /*
+                    if let Some(gfx) = &self.gfx_state {
+                        gfx.replace(GraphicsState::swap_multi().unwrap());
+                    }
+                    */
                     //
                     *ncurr_ref = Takeable::new(ncurr_surface);
                     Ok(())

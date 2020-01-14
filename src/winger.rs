@@ -65,13 +65,17 @@ unsafe impl GraphicsContext for WinSurface {
     fn state(&self) -> &Rc<RefCell<GraphicsState>> { &self.gfx_state }
 }
 
-unsafe impl GraphicsContext for &mut WinSurface {
-    fn state(&self) -> &Rc<RefCell<GraphicsState>> { &self.gfx_state }
-}
-
 impl WinSurface {
-    pub fn new<T>(el: &EventLoop<T>, dim: WindowDim, title: &str, win_opt: WindowOpt)
-    -> Result<Self, WinError> {
+    pub fn new<T>(
+        el: &EventLoop<T>,
+        dim: WindowDim,
+        title: &str,
+        win_opt: WindowOpt,
+        //gfx_state: Rc<RefCell<GraphicsState>>
+        //
+        manager: Option<&mut WinManager>
+        //
+    ) -> Result<Self, WinError> {
         let win_builder = WindowBuilder::new().with_title(title);
         let win_builder = match dim {
             WindowDim::Windowed(w, h) =>
@@ -101,15 +105,22 @@ impl WinSurface {
             CursorMode::Visible => win_ctx.window().set_cursor_visible(true),
             CursorMode::Invisible | CursorMode::Disabled => win_ctx.window().set_cursor_visible(false)
         }
-        //
         gl::load_with(|s| win_ctx.get_proc_address(s) as *const c_void);
         win_ctx.window().set_visible(true);
-        let gfx_state = GraphicsState::new().map_err(WinError::GraphicsStateError)?;
+        //
+        //
+        //let gfx_state = GraphicsState::new().map_err(WinError::GraphicsStateError)?;
+        //
+        let gfx_state = match manager {
+            None => Rc::new(RefCell::new(GraphicsState::new().unwrap())),//.map_err(WinError::GraphicsStateError)?,
+            Some(manager) => manager.gfx()
+        };
+        //
+        //
         Ok(WinSurface {
-            //win_ctx,
-            //win_ctx: Takeable::new(CtxCurrWrapper::PossiblyCurrent(win_ctx)),
             win_ctx: CtxCurrWrapper::PossiblyCurrent(win_ctx),
-            gfx_state: Rc::new(RefCell::new(gfx_state))
+            //gfx_state: Rc::new(RefCell::new(gfx_state))
+            gfx_state: gfx_state
         })
     }
 
@@ -138,15 +149,46 @@ pub enum CtxCurrWrapper {
     NotCurrent(WindowedContext<NotCurrent>)
 }
 
-#[derive(Default)]
 pub struct WinManager {
     current: Option<WindowId>,
-    //others: HashMap<WindowId, WinSurface>
-    //others: Vec<(WindowId, Takeable<WinSurface>)>
+    gfx_state: Option<Rc<RefCell<GraphicsState>>>,
     others: HashMap<WindowId, Takeable<WinSurface>>
 }
 
+/*
+unsafe impl GraphicsContext for WinManager {
+    fn state(&self) -> &Rc<RefCell<GraphicsState>> { &self.gfx_state }
+}
+*/
+
 impl WinManager {
+    pub fn new() -> Result<Self, WinError> {
+        //let gfx_state = GraphicsState::new().map_err(WinError::GraphicsStateError)?;
+        Ok(WinManager {
+            current: None,
+            gfx_state: None,
+            others: HashMap::default()
+        })
+    }
+
+    pub fn gfx(&mut self) -> Rc<RefCell<GraphicsState>> {
+        match &self.gfx_state {
+            None => {
+                //
+                //let gfx = GraphicsState::new().unwrap();
+                //GraphicsState::get_from_context()
+                //
+                let gfx = Rc::new(RefCell::new(GraphicsState::new().unwrap()));
+                //
+                let ret = Rc::clone(&gfx);
+                self.gfx_state = Some(gfx);
+                //
+                ret
+            }
+            Some(gfx_state) => Rc::clone(&gfx_state)
+        }
+    }
+
     pub fn insert_window(&mut self, surface: WinSurface) -> Result<WindowId, WinError> {
         match &surface.win_ctx {
             CtxCurrWrapper::PossiblyCurrent(ctx) => {
@@ -200,6 +242,17 @@ impl WinManager {
                             }
                         }
                         Ok(rctx) => {
+                            //
+                            //ncurr_surface.
+                            /*if let Some(gfx) = &self.gfx_state {
+                                //
+                                //
+                                let mut state = gfx.borrow_mut();
+                                //
+                                state = GraphicsState::get_from_context().unwrap();
+                                //
+                            }*/
+                            //
                             ncurr_surface.win_ctx = CtxCurrWrapper::PossiblyCurrent(rctx);
                             *ncurr_ref = Takeable::new(ncurr_surface);
                             Ok(())
@@ -213,6 +266,8 @@ impl WinManager {
             let ncurr_surface = Takeable::take(ncurr_ref);
             match &ncurr_surface.win_ctx {
                 CtxCurrWrapper::PossiblyCurrent(_) => {
+                    //
+                    //
                     *ncurr_ref = Takeable::new(ncurr_surface);
                     Ok(())
                 }

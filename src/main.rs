@@ -8,6 +8,7 @@ use luminance::shader::program::Program;
 use luminance::tess::{Mode, Tess, TessBuilder};
 use luminance_windowing::{WindowDim, WindowOpt};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 mod winger;
 use winger::{CtxCurrWrapper, WinManager, WinSurface};
@@ -79,15 +80,18 @@ impl WinData {
 
 fn main() {
     let el = EventLoop::new();
-    let mut win_manager = WinManager::default();
+    let mut win_manager = WinManager::new().unwrap();
     let mut win_datas: HashMap<WindowId, WinData> = HashMap::default();
 
-    for win_idx in 0..3 {
+    //*
+    for win_idx in 0..1 {
         let surface = WinSurface::new(
             &el,
             WindowDim::Windowed(800, 400),
             &format!("Test Lumglut multiWin #{}", win_idx+1),
-            WindowOpt::default()
+            WindowOpt::default(),
+            Some(&mut win_manager)
+            //Rc::clone(win_manager.state())
         ).expect(&format!("Glutin surface creation {}", win_idx));
         //windows.insert(win_idx, surface);
         //
@@ -95,6 +99,7 @@ fn main() {
         win_datas.insert(win_id, WinData::new(win_manager.get_current(win_id).unwrap()));
         //
     }
+    //*/
     //
     /*
     let surface = WinSurface::new(
@@ -171,11 +176,15 @@ fn main() {
                 let surface = win_manager.get_current(win_id.clone()).unwrap();
                 let back_buffer = surface.back_buffer().unwrap();
                 let win_data = win_datas.get(&win_id).unwrap();
+                //
                 surface.pipeline_builder().pipeline(
+                //win_manager.pipeline_builder().pipeline(
+                //
                     &back_buffer,
                     &PipelineState::default().set_clear_color(win_data.bgcol),
                     |_, mut shd_gate| {
                         shd_gate.shade(&program, |_, mut rdr_gate| {
+                            //*
                             rdr_gate.render(&RenderState::default(), |mut tess_gate| {
                                 let tess = match win_data.get_mode() {
                                     TessMethod::Direct => &win_data.tesses[0],
@@ -185,6 +194,7 @@ fn main() {
                                 };
                                 tess_gate.render(tess);
                             });
+                            //*/
                         });
                     }
                 );

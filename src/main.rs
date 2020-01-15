@@ -1,3 +1,4 @@
+//use gl;
 use glutin::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowId;
@@ -13,7 +14,7 @@ mod winger;
 use winger::{CtxCurrWrapper, WinManager, WinSurface};
 
 mod in_utils;
-use in_utils::{TRIS_FULL, Semantics, TessMethod, new_nb};
+use in_utils::{TRIS_FIRST, TRIS_FULL, Semantics, TessMethod, new_nb};
 
 const VS: &'static str = include_str!("../ressources/simple-vs.glsl");
 const FS: &'static str = include_str!("../ressources/simple-fs.glsl");
@@ -22,39 +23,51 @@ struct WinData {
     redraw: bool,
     demo: TessMethod,
     pub tesses: [Tess; 4],
+    pub program: Program<Semantics, (), ()>,
     pub bgcol: [f32; 4]
 }
 
 impl WinData {
-    fn new(surface: &mut WinSurface) -> WinData {
+    fn new(surface: &mut WinSurface,first: bool) -> WinData {
+        //
+        let tris = if first { TRIS_FIRST } else { TRIS_FULL };
+        //let tris = TRIS_FIRST;
+        //
         let direct_tris = TessBuilder::new(surface)
-            .add_vertices(TRIS_FULL.tri_verts.clone())
+            .add_vertices(tris.tri_verts)
             .set_mode(Mode::Triangle)
             .build()
             .unwrap();
         let indexed_tris = TessBuilder::new(surface)
-            .add_vertices(TRIS_FULL.tri_verts)
-            .set_indices(TRIS_FULL.tri_inds)
+            .add_vertices(tris.tri_verts)
+            .set_indices(tris.tri_inds)
             .set_mode(Mode::Triangle)
             .build()
             .unwrap();
         let direct_deint_tris = TessBuilder::new(surface)
-            .add_vertices(TRIS_FULL.tri_deint_pos_verts)
-            .add_vertices(TRIS_FULL.tri_deint_col_verts)
+            .add_vertices(tris.tri_deint_pos_verts)
+            .add_vertices(tris.tri_deint_col_verts)
             .set_mode(Mode::Triangle)
             .build()
             .unwrap();
         let indexed_deint_tris = TessBuilder::new(surface)
-            .add_vertices(TRIS_FULL.tri_deint_pos_verts)
-            .add_vertices(TRIS_FULL.tri_deint_col_verts)
-            .set_indices(TRIS_FULL.tri_inds)
+            .add_vertices(tris.tri_deint_pos_verts)
+            .add_vertices(tris.tri_deint_col_verts)
+            .set_indices(tris.tri_inds)
             .set_mode(Mode::Triangle)
             .build()
             .unwrap();
+        //
+        let program = Program::<Semantics, (), ()>::from_strings(None, VS, None, FS)
+            .expect("program creation")
+            .ignore_warnings();
+        //
+        //
         WinData {
             redraw: false,
             demo: TessMethod::Direct,
             tesses: [direct_tris, indexed_tris, direct_deint_tris, indexed_deint_tris],
+            program,
             bgcol: [0.0, 0.0, 0.0, 1.0]
         }
     }
@@ -89,13 +102,16 @@ fn main() {
             WindowDim::Windowed(800, 400),
             &format!("Test Lumglut multiWin #{}", win_idx+1),
             WindowOpt::default(),
-            Some(&mut win_manager)
+            //Some(&mut win_manager)
             //Rc::clone(win_manager.state())
         ).expect(&format!("Glutin surface creation {}", win_idx));
         //windows.insert(win_idx, surface);
         //
         let win_id = win_manager.insert_window(surface).unwrap();
-        win_datas.insert(win_id, WinData::new(win_manager.get_current(win_id).unwrap()));
+        win_datas.insert(
+            win_id,
+            WinData::new(win_manager.get_current(win_id).unwrap(), win_idx == 0)
+        );
         //
     }
     //*/
@@ -112,9 +128,11 @@ fn main() {
     */
     //
 
+    /*
     let program = Program::<Semantics, (), ()>::from_strings(None, VS, None, FS)
         .expect("program creation")
         .ignore_warnings();
+    */
 
     el.run(move |evt, _, ctrl_flow| {
         //*ctrl_flow = ControlFlow::Wait;
@@ -176,11 +194,19 @@ fn main() {
                 let back_buffer = surface.back_buffer().unwrap();
                 let win_data = win_datas.get(&win_id).unwrap();
                 //
-                let tess = TessBuilder::new(surface)
+                let _tess = TessBuilder::new(surface)
                     .add_vertices(TRIS_FULL.tri_verts.clone())
                     .set_mode(Mode::Triangle)
                     .build()
                     .unwrap();
+                //
+                /*
+                if let CtxCurrWrapper::PossiblyCurrent(ctx) = surface.ctx() {
+                    //
+                    //
+                    //
+                }
+                */
                 //
                 //
                 surface.pipeline_builder().pipeline(
@@ -189,10 +215,10 @@ fn main() {
                     &back_buffer,
                     &PipelineState::default().set_clear_color(win_data.bgcol),
                     |_, mut shd_gate| {
-                        shd_gate.shade(&program, |_, mut rdr_gate| {
-                            //*
+                        shd_gate.shade(&win_data.program, |_, mut rdr_gate| {
+                            //
                             rdr_gate.render(&RenderState::default(), |mut tess_gate| {
-                                let _tess = match win_data.get_mode() {
+                                let tess = match win_data.get_mode() {
                                     TessMethod::Direct => &win_data.tesses[0],
                                     TessMethod::Indexed => &win_data.tesses[1],
                                     TessMethod::DirectDeinter => &win_data.tesses[2],
@@ -200,9 +226,9 @@ fn main() {
                                 };
                                 //
                                 //
-                                tess_gate.render(&tess);
+                                tess_gate.render(tess);
                             });
-                            //*/
+                            //
                         });
                     }
                 );

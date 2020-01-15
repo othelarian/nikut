@@ -1,4 +1,14 @@
-# TODO LIST :
+# TRACKING INFOS :
+
+bgcolor working as clear color
+
+luminance stage: construct shaders (vertex, fragment, etc)
+
+pipeline::Builder: from surface.pipeline_builder(), where all the magic take form
+
+looking for PipelineState, as the clear color is working => Ok, it's 
+
+# TODO LIST (COMPLETE) :
 
 ## DAY 1 (2020/01/05)
 
@@ -49,12 +59,3 @@
 * another day, same activity => WIP
   * finish the winger.rs file, fixing the "get_current" function (last part) => DONE
   * test the first window with the new WinManager => WIP
-
-## PREPARED
-
-
-* test two windows in parallel
-
-* work on Nuklear Window part
-
-* list all widgets

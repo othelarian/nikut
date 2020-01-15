@@ -9,8 +9,8 @@ gl = "0.14.0"
 #glutin = {version = "0.21.2", default-features = false}
 glutin = {version = "0.22.0", default-features = false}
 
-luminance = { path = "../luminance-rs/luminance" }
-#luminance = {git = "https://github.com/othelarian/luminance-rs.git", branch = "master"}
+#luminance = { path = "../luminance-rs/luminance" }
+luminance = {git = "https://github.com/othelarian/luminance-rs.git", branch = "multiwin"}
 #luminance = "0.38.0"
 luminance-derive = "0.5.1"
 luminance-windowing = "0.8.1"

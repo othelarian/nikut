@@ -8,7 +8,8 @@ use glutin::event_loop::EventLoop;
 use glutin::window::{Fullscreen, WindowBuilder, WindowId};
 use luminance::context::GraphicsContext;
 use luminance::framebuffer::Framebuffer;
-use luminance::state::{GraphicsState, StateQueryError};
+//use luminance::state::{GraphicsState, StateQueryError};
+use luminance::state::GraphicsState;
 use luminance::texture::{Dim2, Flat};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -24,7 +25,7 @@ pub use luminance_windowing::{CursorMode, Surface, WindowDim, WindowOpt};
 pub enum WinError {
     CreationError(CreationError),
     ContextError(ContextError),
-    GraphicsStateError(StateQueryError),
+    //GraphicsStateError(StateQueryError),
     WinInternError(&'static str)
 }
 
@@ -35,8 +36,8 @@ impl fmt::Display for WinError {
                 write!(f, "Win surface creation error: {}", e),
             WinError::ContextError(ref e) =>
                 write!(f, "Win OGL context creation error: {}", e),
-            WinError::GraphicsStateError(ref e) =>
-                write!(f, "OGL graphics state init error: {}", e),
+            //WinError::GraphicsStateError(ref e) =>
+            //    write!(f, "OGL graphics state init error: {}", e),
             WinError::WinInternError(e) =>
                 write!(f, "Win Intern error: {}", e)
         }
@@ -70,10 +71,10 @@ impl WinSurface {
         el: &EventLoop<T>,
         dim: WindowDim,
         title: &str,
-        win_opt: WindowOpt,
+        win_opt: WindowOpt
         //gfx_state: Rc<RefCell<GraphicsState>>
         //
-        manager: Option<&mut WinManager>
+        //manager: Option<&mut WinManager>
         //
     ) -> Result<Self, WinError> {
         let win_builder = WindowBuilder::new().with_title(title);
@@ -111,16 +112,19 @@ impl WinSurface {
         //
         //let gfx_state = GraphicsState::new().map_err(WinError::GraphicsStateError)?;
         //
+        /*
         let gfx_state = match manager {
             None => Rc::new(RefCell::new(GraphicsState::new().unwrap())),//.map_err(WinError::GraphicsStateError)?,
             Some(manager) => manager.gfx()
         };
+        */
+        let gfx_state = Rc::new(RefCell::new(GraphicsState::new_multi().unwrap()));
         //
         //
         Ok(WinSurface {
             win_ctx: CtxCurrWrapper::PossiblyCurrent(win_ctx),
             //gfx_state: Rc::new(RefCell::new(gfx_state))
-            gfx_state: gfx_state
+            gfx_state
         })
     }
 
@@ -151,7 +155,7 @@ pub enum CtxCurrWrapper {
 
 pub struct WinManager {
     current: Option<WindowId>,
-    gfx_state: Option<Rc<RefCell<GraphicsState>>>,
+    //gfx_state: Option<Rc<RefCell<GraphicsState>>>,
     others: HashMap<WindowId, Takeable<WinSurface>>
 }
 
@@ -166,11 +170,12 @@ impl WinManager {
         //let gfx_state = GraphicsState::new().map_err(WinError::GraphicsStateError)?;
         Ok(WinManager {
             current: None,
-            gfx_state: None,
+            //gfx_state: None,
             others: HashMap::default()
         })
     }
 
+    /*
     pub fn gfx(&mut self) -> Rc<RefCell<GraphicsState>> {
         match &self.gfx_state {
             None => {
@@ -188,6 +193,7 @@ impl WinManager {
             Some(gfx_state) => Rc::clone(&gfx_state)
         }
     }
+    */
 
     pub fn insert_window(&mut self, surface: WinSurface) -> Result<WindowId, WinError> {
         match &surface.win_ctx {
@@ -243,6 +249,7 @@ impl WinManager {
                         }
                         Ok(rctx) => {
                             //
+                            //gl::load_with(|s| rctx.get_proc_address(s) as *const c_void);
                             /*
                             if let Some(gfx) = &self.gfx_state {
                                 //let mut state = gfx.borrow_mut();
@@ -269,6 +276,7 @@ impl WinManager {
                         gfx.replace(GraphicsState::swap_multi().unwrap());
                     }
                     */
+                    //gl::load_with(|s| rctx.get_proc_address(s) as *const c_void);
                     //
                     *ncurr_ref = Takeable::new(ncurr_surface);
                     Ok(())

@@ -42,6 +42,37 @@ pub struct TriFull<'a> {
     pub tri_deint_col_verts: &'a[Colors]
 }
 
+pub const TRIS_FIRST: TriFull = TriFull {
+    tri_verts: [
+        Vertex {pos: VertexPosition::new([-0.5, -0.5]), rgb: VertexColor::new([0, 255, 0])},
+        Vertex {pos: VertexPosition::new([0.5, 0.0]), rgb: VertexColor::new([0, 0, 255])},
+        Vertex {pos: VertexPosition::new([-0.5, 0.5]), rgb: VertexColor::new([255, 0, 0])},
+        Vertex {pos: VertexPosition::new([0.5, 0.5]), rgb: VertexColor::new([255, 51, 255])},
+        Vertex {pos: VertexPosition::new([-0.5, 0.0]), rgb: VertexColor::new([51, 255, 255])},
+        Vertex {pos: VertexPosition::new([0.5, -0.5]), rgb: VertexColor::new([51, 51, 255])}
+    ],
+    tri_inds: [
+        0, 1, 2, // First triangle.
+        3, 4, 5, // Second triangle.
+    ],
+    tri_deint_pos_verts: &[
+        Positions {pos: VertexPosition::new([0.5, -0.5])},
+        Positions {pos: VertexPosition::new([0.0, 0.5])},
+        Positions {pos: VertexPosition::new([-0.5, -0.5])},
+        Positions {pos: VertexPosition::new([-0.5, 0.5])},
+        Positions {pos: VertexPosition::new([0.0, -0.5])},
+        Positions {pos: VertexPosition::new([0.5, 0.5])}
+    ],
+    tri_deint_col_verts: &[
+        Colors {color: VertexColor::new([0, 255, 0])},
+        Colors {color: VertexColor::new([0, 0, 255])},
+        Colors {color: VertexColor::new([255, 0, 0])},
+        Colors {color: VertexColor::new([255, 51, 255])},
+        Colors {color: VertexColor::new([51, 255, 255])},
+        Colors {color: VertexColor::new([51, 51, 255])}
+    ]
+};
+
 pub const TRIS_FULL: TriFull = TriFull {
     tri_verts: [
         Vertex {pos: VertexPosition::new([0.5, -0.5]), rgb: VertexColor::new([0, 255, 0])},

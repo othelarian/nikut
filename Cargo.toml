@@ -9,8 +9,9 @@ gl = "0.14.0"
 #glutin = {version = "0.21.2", default-features = false}
 glutin = {version = "0.22.0", default-features = false}
 
-#luminance = { path = "../luminance-rs/luminance" }
-luminance = {git = "https://github.com/othelarian/luminance-rs.git", branch = "multiwin"}
+#luminance = {path = "../luminance-rs/luminance"}
+#luminance = { path = "../luminance-rs/luminance", features = ["multiwin"]}
+#luminance = {git = "https://github.com/othelarian/luminance-rs.git", branch = "multiwin"}
 #luminance = "0.38.0"
 luminance-derive = "0.5.1"
 luminance-windowing = "0.8.1"
@@ -18,3 +19,10 @@ luminance-windowing = "0.8.1"
 takeable-option = "0.5.0"
 
 rand = "0.5.5"
+
+[dependencies.luminance]
+#version = "0.38.0"
+git = "https://github.com/othelarian/luminance-rs.git"
+branch = "multiwin"
+#features = ["std"]
+features = ["multiwin"]

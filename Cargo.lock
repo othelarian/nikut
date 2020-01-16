@@ -417,7 +417,7 @@ dependencies = [
 [[package]]
 name = "luminance"
 version = "0.38.0"
-source = "git+https://github.com/othelarian/luminance-rs.git?branch=multiwin#cccc475ea18926ddd7d1d18cf4d1007b38a5725c"
+source = "git+https://github.com/othelarian/luminance-rs.git?branch=multiwin#c34d47266ecedf3e92acf7cddd9402a8cf4b3ea0"
 dependencies = [
  "gl",
 ]
